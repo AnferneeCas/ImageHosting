@@ -68,7 +68,9 @@ app.post("/image", async (req, res) => {
   var s = fs.createReadStream(fileTest);
   s.on('open', function () {
       res.set('Content-Type', type);
+      //the picture 
       s.pipe(res);
+      
   });
 
   // // Save the image uuid and expired date in DB
