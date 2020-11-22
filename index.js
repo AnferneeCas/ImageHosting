@@ -16,8 +16,8 @@ mongoose.connect(
     useCreateIndex: true,
   }
 );
-
-const dir = path.join(__dirname + "/public/img/")
+const Image = mongoose.model("Image");
+const dir = path.join(__dirname + "/public/img/");
 const app = express();
 
 /* Middlewares */
@@ -25,9 +25,8 @@ app.use(express.json({ limit: "32mb" }));
 app.use(express.static(__dirname + "/public"));
 // Save an image
 app.post("/image", async (req, res) => {
-
-  const { file,format, user} = req.body;
-  //Save image in local 
+  const { file, format, user } = req.body;
+  //Save image in local
   const uuid = uuidv4();
   let ReadableStream = require("stream").Readable;
   const imageBufferData = Buffer.from(file, "base64");
@@ -37,18 +36,23 @@ app.post("/image", async (req, res) => {
   streamObjet.pipe(fs.createWriteStream(`${dir}${uuid}.${format}`));
 
   // Save the image uuid and expired date in DB
-  const Image = mongoose.model("Image");
+
   // Date.Now plus 15days (15*24*60*60*1000)
+  var tmpDate = new Date();
+  tmpDate.setDate(tmpDate.getDate() + 15);
+
   var tmpImage = await Image.create({
-    name:`${uuid}.${format}`,
-    expireDate: Date.now() + 15 * 24 * 60 * 60 * 1000,
+    name: `${uuid}.${format}`,
+    expireDate: tmpDate,
   });
   console.log(`imagen creada ${tmpImage} `);
-  res.send({url:`${req.protocol}://${req.headers.host}/img/${tmpImage.name}`})
+  res.send({
+    url: `${req.protocol}://${req.headers.host}/img/${tmpImage.name}`,
+  });
 });
 
+// gets hosting url
 app.get("/image/:imageName", async function (req, res) {
-  const Image = mongoose.model("Image");
   const tmpImage = await Image.findOne({ name: req.params.imageName });
   console.log(tmpImage);
   if (tmpImage) {
@@ -63,13 +67,22 @@ app.get("/image/:imageName", async function (req, res) {
   }
 });
 
+// gets image file
 app.get("/images/:imageName", async function (req, res) {
+  const imageName = req.params.imageName;
   // const Image = mongoose.model("Image");
   // console.log(req.hostname);
   // const tmpImage = await Image.findOne({ name: req.params.imageName });
   // if (tmpImage) {
-    // retorna el ARCHIVO de la imagen.
-    res.status(200).sendFile(path.join(__dirname + "/images/" + req.params.imageName));
+  var tmpImage = await Image.findOne({ name: imageName });
+  console.log(tmpImage);
+  if (tmpImage) {
+    res.status(200).sendFile(path.join(__dirname + "/public/img/" + imageName));
+  } else {
+    res.status(400).send({ message: "image does not exist." });
+  }
+  // retorna el ARCHIVO de la imagen.
+
   // } else {
   //   res.redirect("http://www.google.com");
   // }

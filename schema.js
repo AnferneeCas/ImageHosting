@@ -17,10 +17,11 @@ Image.add({
 });
 
 Image.post("findOne", async function (result) {
-  console.log(result);
-  const tmpImage = await mongoose
-    .model("Image")
-    .findOneAndUpdate({ _id: result._id }, { $inc: { views: 1 } });
+  if (result) {
+    const tmpImage = await mongoose
+      .model("Image")
+      .findOneAndUpdate({ _id: result._id }, { $inc: { views: 1 } });
+  }
 });
 
 mongoose.model("Image", Image);
