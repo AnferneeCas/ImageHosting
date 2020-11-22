@@ -17,76 +17,34 @@ mongoose.connect(
   }
 );
 
-
-
-
+const dir = path.join(__dirname + "/public/img/")
 const app = express();
-const dir  = path.join(__dirname, "images");
 
 /* Middlewares */
-const middlewares = [
-  express.json({ limit: "32mb" }),
-  express.static(dir),
-];
-app.use(middlewares);
-
-var mime = {
-  html: 'text/html',
-  txt: 'text/plain',
-  css: 'text/css',
-  gif: 'image/gif',
-  jpg: 'image/jpeg',
-  png: 'image/png',
-  svg: 'image/svg+xml',
-  js: 'application/javascript'
-};
-
+app.use(express.json({ limit: "32mb" }));
+app.use(express.static(__dirname + "/public"));
 // Save an image
 app.post("/image", async (req, res) => {
-  // Vars
-  const { file: imageBase64, user, format } = req.body;
-  var hostname = os.hostname();
+
+  const { file,format, user} = req.body;
+  //Save image in local 
   const uuid = uuidv4();
   let ReadableStream = require("stream").Readable;
-  const imageBufferData = Buffer.from(imageBase64, "base64");
+  const imageBufferData = Buffer.from(file, "base64");
   let streamObjet = new ReadableStream();
-
-  let file = !user
-    ? `/images/${uuid}.${format}`
-    : /* check when i save a picture from a regitered  user  -------pending */
-      `/images/users/${uuid}.${format}`;
-
   streamObjet.push(imageBufferData);
   streamObjet.push(null);
-  streamObjet.pipe(fs.createWriteStream(`${__dirname}${file}`));
+  streamObjet.pipe(fs.createWriteStream(`${dir}${uuid}.${format}`));
 
-  //testing
-  var fileTest = path.join(dir,`${uuid}.${format}`);
-  var type = mime[path.extname(fileTest).slice(1)] || 'text/plain';
-  console.log(path.extname(fileTest).slice(1) || 'text/plain');
-  console.log(type);
-  var s = fs.createReadStream(fileTest);
-  s.on('open', function () {
-      res.set('Content-Type', type);
-      //the picture 
-      s.pipe(res);
-      
+  // Save the image uuid and expired date in DB
+  const Image = mongoose.model("Image");
+  // Date.Now plus 15days (15*24*60*60*1000)
+  var tmpImage = await Image.create({
+    name:`${uuid}.${format}`,
+    expireDate: Date.now() + 15 * 24 * 60 * 60 * 1000,
   });
-
-  // // Save the image uuid and expired date in DB
-  // const Image = mongoose.model("Image");
-  // // Date.Now plus 15days (15*24*60*60*1000)
-  // var tmpImage = await Image.create({
-  //   name: uuid,
-  //   expireDate: Date.now() + 15 * 24 * 60 * 60 * 1000,
-  // });
-  // console.log(`imagen creada ${tmpImage} `);
-  
-
-  // respond with the image url
-  // considerations
-  // Temporary image route = images/tmp
-  // User specific image route is  = images/users/username
+  console.log(`imagen creada ${tmpImage} `);
+  res.send({url:`${req.protocol}://${req.headers.host}/img/${tmpImage.name}`})
 });
 
 app.get("/image/:imageName", async function (req, res) {
@@ -105,21 +63,16 @@ app.get("/image/:imageName", async function (req, res) {
   }
 });
 
-app.get("/hosting/:imageName", async function (req, res) {
-  const Image = mongoose.model("Image");
-  const tmpImage = await Image.findOne({ name: req.params.imageName });
-  if (tmpImage) {
+app.get("/images/:imageName", async function (req, res) {
+  // const Image = mongoose.model("Image");
+  // console.log(req.hostname);
+  // const tmpImage = await Image.findOne({ name: req.params.imageName });
+  // if (tmpImage) {
     // retorna el ARCHIVO de la imagen.
-    res.status(200).send(tmpImage);
-  } else {
-    res.redirect("http://www.google.com");
-  }
+    res.status(200).sendFile(path.join(__dirname + "/images/" + req.params.imageName));
+  // } else {
+  //   res.redirect("http://www.google.com");
+  // }
 });
-
-
-
-
-
-
 
 app.listen(3000);
